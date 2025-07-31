@@ -1,30 +1,718 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Feedback Data Viewer</title>
+    <title>Feedback Data Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .filters {
+            flex: 1;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .filter-group label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .filter-select, .filter-input {
+            padding: 8px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .filter-select:focus, .filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .dashboard {
+            padding: 30px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+        
+        .positive { color: #28a745; }
+        .negative { color: #dc3545; }
+        .neutral { color: #6c757d; }
+        .mixed { color: #ffc107; }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            height: 400px;
+            position: relative;
+        }
+        
+        .chart-container canvas {
+            max-height: 320px !important;
+        }
+        
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #495057;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+            height: 450px;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .table-title {
+            padding: 20px 25px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .data-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: top;
+        }
+        
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .sentiment-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filters {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Feedback Summary Table</h1>
+    <div class="container">
+        <div class="header">
+            <h1>Feedback Analytics Dashboard</h1>
+            <p>Comprehensive analysis of student feedback and sentiment</p>
+        </div>
 
-    <button onclick="fetchData()">Load JSON Data</button>
-    <button onclick="downloadCSV()">Download as CSV</button>
+        <div class="controls">
+            <button class="btn btn-primary" onclick="fetchData()">Load Data</button>
+            <button class="btn btn-success" onclick="downloadCSV()">Download CSV</button>
+            
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Sentiment Filter</label>
+                    <select class="filter-select" id="sentimentFilter" onchange="applyFilters()">
+                        <option value="">All Sentiments</option>
+                        <option value="POSITIVE">Positive</option>
+                        <option value="NEGATIVE">Negative</option>
+                        <option value="NEUTRAL">Neutral</option>
+                        <option value="MIXED">Mixed</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Faculty Filter</label>
+                    <select class="filter-select" id="facultyFilter" onchange="applyFilters()">
+                        <option value="">All Faculty</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Date From</label>
+                    <input type="date" class="filter-input" id="dateFromFilter" onchange="applyFilters()">
+                </div>
+                
+                <div class="filter-group">
+                    <label>Date To</label>
+                    <input type="date" class="filter-input" id="dateToFilter" onchange="applyFilters()">
+                </div>
+            </div>
+        </div>
 
-    <pre id="jsonDisplay" style="background:#f5f5f5; padding:15px; margin-top:20px; border:1px solid #ccc;"></pre>
+        <div class="dashboard" id="dashboard" style="display: none;">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalFeedback">0</div>
+                    <div class="stat-label">Total Feedback</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value positive" id="positiveCount">0</div>
+                    <div class="stat-label">Positive</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value negative" id="negativeCount">0</div>
+                    <div class="stat-label">Negative</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value neutral" id="neutralCount">0</div>
+                    <div class="stat-label">Neutral</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="facultyCount">0</div>
+                    <div class="stat-label">Faculty Mentioned</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Sentiment Distribution</div>
+                    <canvas id="sentimentChart" width="400" height="400"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-title">Feedback Timeline</div>
+                    <canvas id="timelineChart" width="400" height="400"></canvas>
+                </div>
+                
+                <div class="chart-container full-width">
+                    <div class="chart-title">Faculty Mentions</div>
+                    <canvas id="facultyChart" width="800" height="400"></canvas>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="table-container">
+                <div class="table-title">Detailed Feedback Data</div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table" id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Sentiment</th>
+                                <th>Faculty</th>
+                                <th>Comments</th>
+                                <th>Key Phrases</th>
+                                <th>Themes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loadingMessage">
+            Click "Load Data" to view feedback analytics
+        </div>
+    </div>
 
     <script>
     let rawData = [];
+    let filteredData = [];
+    let charts = {};
 
     function fetchData() {
+        document.getElementById("loadingMessage").textContent = "Loading data...";
+        
         fetch("/admin/feedback-data")
             .then(response => response.json())
             .then(data => {
-                rawData = data.data;
-                document.getElementById("jsonDisplay").textContent = JSON.stringify(data, null, 4);
+                rawData = data.data || [];
+                filteredData = [...rawData];
+                
+                if (rawData.length === 0) {
+                    document.getElementById("loadingMessage").textContent = "No feedback data available";
+                    return;
+                }
+                
+                populateFilters();
+                updateDashboard();
+                document.getElementById("loadingMessage").style.display = "none";
+                document.getElementById("dashboard").style.display = "block";
             })
             .catch(error => {
-                document.getElementById("jsonDisplay").textContent = "Error fetching data: " + error;
+                document.getElementById("loadingMessage").textContent = "Error loading data: " + error;
+                console.error("Error:", error);
             });
+    }
+
+    function populateFilters() {
+        // Populate faculty filter
+        const facultySet = new Set();
+        rawData.forEach(item => {
+            if (item.FacultyMentions) {
+                Object.keys(item.FacultyMentions).forEach(faculty => {
+                    facultySet.add(faculty);
+                });
+            }
+        });
+        
+        const facultyFilter = document.getElementById("facultyFilter");
+        facultyFilter.innerHTML = '<option value="">All Faculty</option>';
+        Array.from(facultySet).sort().forEach(faculty => {
+            const option = document.createElement("option");
+            option.value = faculty;
+            option.textContent = faculty;
+            facultyFilter.appendChild(option);
+        });
+    }
+
+    function applyFilters() {
+        const sentimentFilter = document.getElementById("sentimentFilter").value;
+        const facultyFilter = document.getElementById("facultyFilter").value;
+        const dateFromFilter = document.getElementById("dateFromFilter").value;
+        const dateToFilter = document.getElementById("dateToFilter").value;
+
+        filteredData = rawData.filter(item => {
+            // Sentiment filter
+            if (sentimentFilter) {
+                const sentiment = getSentiment(item);
+                if (sentiment !== sentimentFilter) return false;
+            }
+
+            // Faculty filter
+            if (facultyFilter) {
+                if (!item.FacultyMentions || !item.FacultyMentions[facultyFilter]) return false;
+            }
+
+            // Date filters
+            if (dateFromFilter || dateToFilter) {
+                const itemDate = new Date(item.processed_at);
+                if (dateFromFilter && itemDate < new Date(dateFromFilter)) return false;
+                if (dateToFilter && itemDate > new Date(dateToFilter)) return false;
+            }
+
+            return true;
+        });
+
+        updateDashboard();
+    }
+
+    function getSentiment(item) {
+        const counts = item.SentimentCounts || {};
+        const avg = item.AverageSentimentScores || {};
+
+        if (Object.keys(counts).length > 0) {
+            const maxCount = Object.entries(counts)
+                .map(([k, v]) => [k, parseInt(v)])
+                .reduce((a, b) => a[1] > b[1] ? a : b);
+            return maxCount[0].toUpperCase();
+        } else if (Object.keys(avg).length > 0) {
+            const maxScore = Object.entries(avg)
+                .map(([k, v]) => [k, parseFloat(v)])
+                .reduce((a, b) => a[1] > b[1] ? a : b);
+            return maxScore[0].toUpperCase();
+        }
+        return "UNKNOWN";
+    }
+
+    function updateDashboard() {
+        updateStats();
+        updateCharts();
+        updateTable();
+    }
+
+    function updateStats() {
+        const sentimentCounts = { POSITIVE: 0, NEGATIVE: 0, NEUTRAL: 0, MIXED: 0 };
+        const facultySet = new Set();
+
+        filteredData.forEach(item => {
+            const sentiment = getSentiment(item);
+            if (sentimentCounts.hasOwnProperty(sentiment)) {
+                sentimentCounts[sentiment]++;
+            }
+
+            if (item.FacultyMentions) {
+                Object.keys(item.FacultyMentions).forEach(faculty => {
+                    facultySet.add(faculty);
+                });
+            }
+        });
+
+        document.getElementById("totalFeedback").textContent = filteredData.length;
+        document.getElementById("positiveCount").textContent = sentimentCounts.POSITIVE;
+        document.getElementById("negativeCount").textContent = sentimentCounts.NEGATIVE;
+        document.getElementById("neutralCount").textContent = sentimentCounts.NEUTRAL;
+        document.getElementById("facultyCount").textContent = facultySet.size;
+    }
+
+    function updateCharts() {
+        updateSentimentChart();
+        updateTimelineChart();
+        updateFacultyChart();
+    }
+
+    function updateSentimentChart() {
+        const ctx = document.getElementById('sentimentChart').getContext('2d');
+        
+        if (charts.sentiment) {
+            charts.sentiment.destroy();
+        }
+
+        const sentimentCounts = { POSITIVE: 0, NEGATIVE: 0, NEUTRAL: 0, MIXED: 0 };
+        filteredData.forEach(item => {
+            const sentiment = getSentiment(item);
+            if (sentimentCounts.hasOwnProperty(sentiment)) {
+                sentimentCounts[sentiment]++;
+            }
+        });
+
+        charts.sentiment = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Positive', 'Negative', 'Neutral', 'Mixed'],
+                datasets: [{
+                    data: [sentimentCounts.POSITIVE, sentimentCounts.NEGATIVE, sentimentCounts.NEUTRAL, sentimentCounts.MIXED],
+                    backgroundColor: ['#28a745', '#dc3545', '#6c757d', '#ffc107'],
+                    borderWidth: 3,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateTimelineChart() {
+        const ctx = document.getElementById('timelineChart').getContext('2d');
+        
+        if (charts.timeline) {
+            charts.timeline.destroy();
+        }
+
+        // Group data by date
+        const dateGroups = {};
+        filteredData.forEach(item => {
+            const date = new Date(item.processed_at).toLocaleDateString();
+            if (!dateGroups[date]) {
+                dateGroups[date] = { POSITIVE: 0, NEGATIVE: 0, NEUTRAL: 0, MIXED: 0 };
+            }
+            const sentiment = getSentiment(item);
+            if (dateGroups[date].hasOwnProperty(sentiment)) {
+                dateGroups[date][sentiment]++;
+            }
+        });
+
+        const dates = Object.keys(dateGroups).sort();
+        const positiveData = dates.map(date => dateGroups[date].POSITIVE);
+        const negativeData = dates.map(date => dateGroups[date].NEGATIVE);
+
+        charts.timeline = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Positive',
+                    data: positiveData,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Negative',
+                    data: negativeData,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    function updateFacultyChart() {
+        const ctx = document.getElementById('facultyChart').getContext('2d');
+        
+        if (charts.faculty) {
+            charts.faculty.destroy();
+        }
+
+        const facultyCounts = {};
+        filteredData.forEach(item => {
+            if (item.FacultyMentions) {
+                Object.entries(item.FacultyMentions).forEach(([faculty, count]) => {
+                    facultyCounts[faculty] = (facultyCounts[faculty] || 0) + parseInt(count);
+                });
+            }
+        });
+
+        const sortedFaculty = Object.entries(facultyCounts)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 10); // Top 10 faculty
+
+        if (sortedFaculty.length === 0) {
+            ctx.fillText('No faculty mentions found', 10, 50);
+            return;
+        }
+
+        charts.faculty = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedFaculty.map(([faculty]) => faculty),
+                datasets: [{
+                    label: 'Mentions',
+                    data: sortedFaculty.map(([, count]) => count),
+                    backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 10
+                    }
+                }
+            }
+        });
+    }
+
+    function updateTable() {
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+
+        filteredData.forEach(item => {
+            const row = document.createElement("tr");
+            
+            const sentiment = getSentiment(item);
+            const sentimentClass = sentiment.toLowerCase();
+            const sentimentBadge = `<span class="sentiment-badge ${sentimentClass}">${sentiment}</span>`;
+            
+            const faculty = item.FacultyMentions ? 
+                Object.keys(item.FacultyMentions).join(", ") : "None";
+            
+            const themes = item.ThemeTags ? 
+                Object.keys(item.ThemeTags).join(", ") : "None";
+            
+            const keyPhrases = item.TopKeyPhrases ? 
+                item.TopKeyPhrases.slice(0, 3).join(", ") : "None";
+            
+            row.innerHTML = `
+                <td>${new Date(item.processed_at).toLocaleDateString()}</td>
+                <td>${sentimentBadge}</td>
+                <td>${faculty}</td>
+                <td>${item.TotalComments || 0}</td>
+                <td>${keyPhrases}</td>
+                <td>${themes}</td>
+            `;
+            
+            tbody.appendChild(row);
+        });
     }
 
     function downloadCSV() {
@@ -46,21 +734,7 @@
         const csvRows = [headers.join(",")];
 
         rawData.forEach(item => {
-            let sentiment = "UNKNOWN";
-            const counts = item.SentimentCounts || {};
-            const avg = item.AverageSentimentScores || {};
-
-            if (Object.keys(counts).length > 0) {
-                const maxCount = Object.entries(counts)
-                    .map(([k, v]) => [k, parseInt(v)])
-                    .reduce((a, b) => a[1] > b[1] ? a : b);
-                sentiment = maxCount[0].toUpperCase();
-            } else if (Object.keys(avg).length > 0) {
-                const maxScore = Object.entries(avg)
-                    .map(([k, v]) => [k, parseFloat(v)])
-                    .reduce((a, b) => a[1] > b[1] ? a : b);
-                sentiment = maxScore[0].toUpperCase();
-            }
+            const sentiment = getSentiment(item);
 
             const row = [
                 `"${item.file_name || ''}"`,
