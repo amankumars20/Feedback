@@ -2,7 +2,6 @@
 <html>
 <head>
     <title>Feedback Data Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
@@ -375,7 +374,12 @@
         </div>
 
         <div class="loading" id="loadingMessage">
-            Click "Load Data" to view feedback analytics
+            Click "Load Data" to view feedback analytics or use demo data below
+        </div>
+        
+        <!-- Demo Data Button for Testing -->
+        <div style="text-align: center; padding: 20px;">
+            <button class="btn btn-primary" onclick="loadDemoData()">Load Demo Data</button>
         </div>
     </div>
 
@@ -383,6 +387,48 @@
     let rawData = [];
     let filteredData = [];
     let charts = {};
+
+    // Demo data for testing
+    function loadDemoData() {
+        rawData = [
+            {
+                file_name: "feedback_1.txt",
+                processed_at: "2024-01-15T10:30:00Z",
+                TotalComments: 25,
+                SentimentCounts: { positive: 15, negative: 5, neutral: 5 },
+                AverageSentimentScores: { positive: 0.8, negative: 0.2, neutral: 0.3 },
+                FacultyMentions: { "Dr. Smith": 5, "Prof. Johnson": 3 },
+                ThemeTags: { "teaching_quality": 8, "course_content": 7 },
+                TopKeyPhrases: ["excellent teaching", "clear explanations", "helpful"]
+            },
+            {
+                file_name: "feedback_2.txt",
+                processed_at: "2024-01-16T14:20:00Z",
+                TotalComments: 30,
+                SentimentCounts: { positive: 10, negative: 15, neutral: 5 },
+                AverageSentimentScores: { positive: 0.3, negative: 0.6, neutral: 0.2 },
+                FacultyMentions: { "Dr. Brown": 8, "Prof. Davis": 4 },
+                ThemeTags: { "assignments": 10, "grading": 8 },
+                TopKeyPhrases: ["too difficult", "unclear instructions", "confusing"]
+            },
+            {
+                file_name: "feedback_3.txt",
+                processed_at: "2024-01-17T09:15:00Z",
+                TotalComments: 20,
+                SentimentCounts: { positive: 12, negative: 3, neutral: 5 },
+                AverageSentimentScores: { positive: 0.7, negative: 0.1, neutral: 0.3 },
+                FacultyMentions: { "Dr. Smith": 7, "Prof. Wilson": 2 },
+                ThemeTags: { "lab_sessions": 6, "practical_work": 8 },
+                TopKeyPhrases: ["hands-on experience", "practical knowledge", "engaging"]
+            }
+        ];
+        
+        filteredData = [...rawData];
+        populateFilters();
+        updateDashboard();
+        document.getElementById("loadingMessage").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+    }
 
     function fetchData() {
         document.getElementById("loadingMessage").textContent = "Loading data...";
@@ -436,10 +482,13 @@
         const dateFromFilter = document.getElementById("dateFromFilter").value;
         const dateToFilter = document.getElementById("dateToFilter").value;
 
+        console.log("Applying filters:", { sentimentFilter, facultyFilter, dateFromFilter, dateToFilter });
+
         filteredData = rawData.filter(item => {
             // Sentiment filter
             if (sentimentFilter) {
                 const sentiment = getSentiment(item);
+                console.log("Item sentiment:", sentiment, "Filter:", sentimentFilter);
                 if (sentiment !== sentimentFilter) return false;
             }
 
@@ -458,6 +507,7 @@
             return true;
         });
 
+        console.log("Filtered data count:", filteredData.length);
         updateDashboard();
     }
 
@@ -465,18 +515,22 @@
         const counts = item.SentimentCounts || {};
         const avg = item.AverageSentimentScores || {};
 
+        // First try sentiment counts
         if (Object.keys(counts).length > 0) {
             const maxCount = Object.entries(counts)
-                .map(([k, v]) => [k, parseInt(v)])
+                .map(([k, v]) => [k.toLowerCase(), parseInt(v) || 0])
                 .reduce((a, b) => a[1] > b[1] ? a : b);
             return maxCount[0].toUpperCase();
-        } else if (Object.keys(avg).length > 0) {
+        } 
+        // Then try average sentiment scores
+        else if (Object.keys(avg).length > 0) {
             const maxScore = Object.entries(avg)
-                .map(([k, v]) => [k, parseFloat(v)])
+                .map(([k, v]) => [k.toLowerCase(), parseFloat(v) || 0])
                 .reduce((a, b) => a[1] > b[1] ? a : b);
             return maxScore[0].toUpperCase();
         }
-        return "UNKNOWN";
+        
+        return "NEUTRAL"; // Default fallback
     }
 
     function updateDashboard() {
@@ -580,6 +634,7 @@
         const dates = Object.keys(dateGroups).sort();
         const positiveData = dates.map(date => dateGroups[date].POSITIVE);
         const negativeData = dates.map(date => dateGroups[date].NEGATIVE);
+        const neutralData = dates.map(date => dateGroups[date].NEUTRAL);
 
         charts.timeline = new Chart(ctx, {
             type: 'line',
@@ -596,6 +651,12 @@
                     data: negativeData,
                     borderColor: '#dc3545',
                     backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Neutral',
+                    data: neutralData,
+                    borderColor: '#6c757d',
+                    backgroundColor: 'rgba(108, 117, 125, 0.1)',
                     tension: 0.4
                 }]
             },
@@ -637,7 +698,12 @@
             .slice(0, 10); // Top 10 faculty
 
         if (sortedFaculty.length === 0) {
-            ctx.fillText('No faculty mentions found', 10, 50);
+            // Clear the canvas if no data
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.fillStyle = '#6c757d';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No faculty mentions found', ctx.canvas.width / 2, ctx.canvas.height / 2);
             return;
         }
 
@@ -685,6 +751,13 @@
     function updateTable() {
         const tbody = document.getElementById("tableBody");
         tbody.innerHTML = "";
+
+        if (filteredData.length === 0) {
+            const row = document.createElement("tr");
+            row.innerHTML = `<td colspan="6" style="text-align: center; color: #6c757d; padding: 30px;">No data matches the current filters</td>`;
+            tbody.appendChild(row);
+            return;
+        }
 
         filteredData.forEach(item => {
             const row = document.createElement("tr");
